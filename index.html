@@ -283,6 +283,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const analytics = getAnalytics(app);
 
+// العناصر
 const container = document.getElementById('pageContainer');
 const navbar = document.getElementById('navbar');
 const popup = document.getElementById('popup');
@@ -294,7 +295,20 @@ popupCloseBtn.addEventListener('click', () => popup.classList.remove('show'));
 popup.addEventListener('click', e => { if(e.target===popup) popup.classList.remove('show'); });
 
 
+// -------------------------
+// ⭐ LOADER عند تحميل الصفحة
+// -------------------------
 
+document.body.style.opacity = "0";
+document.body.style.transition = "opacity 0.6s";
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    document.body.style.opacity = "1";
+  }, 900);
+});
+
+// لودر الصفحات الداخلية
 function showLoader() {
   container.innerHTML = `
     <div style='text-align:center;padding:50px'>
@@ -311,12 +325,29 @@ style.innerHTML = `
 document.head.appendChild(style);
 
 
+// -------------------------
+// ⭐ تسجيل الزائر مرة واحدة
+// -------------------------
 
-
+function setCookie(name, value, days) {
+  const d = new Date();
+  d.setTime(d.getTime() + (days*24*60*60*1000));
+  document.cookie = name + "=" + value + ";expires=" + d.toUTCString() + ";path=/";
+}
+function getCookie(name) {
+  let n = name + "=";
+  let ca = document.cookie.split(';');
+  for(let c of ca){
+    while(c.charAt(0)==' ') c = c.substring(1);
+    if(c.indexOf(n)==0) return c.substring(n.length,c.length);
+  }
+  return "";
+}
 
 async function initStats() {
   const statsRef = doc(db, "appStats", "main");
   const statsSnap = await getDoc(statsRef);
+
   if(!statsSnap.exists()) {
     await setDoc(statsRef, {
       startClicks:0, homeClicks:0, eduClicks:{}, deliveryPay:0,
@@ -324,13 +355,23 @@ async function initStats() {
       requestsCount:{}, visitors:0
     });
   }
-  if(!localStorage.getItem('visited')){
+
+  // 🔥 تسجيل الزائر لأول مرة فقط
+  if(!localStorage.getItem("visited_before") && !getCookie("visited_before")) {
+
     const stats = (await getDoc(statsRef)).data();
-    await updateDoc(statsRef,{visitors: (stats.visitors || 0) + 1 });
-    localStorage.setItem('visited','true');
+    await updateDoc(statsRef, { visitors: (stats.visitors || 0) + 1 });
+
+    localStorage.setItem("visited_before", "true");
+    setCookie("visited_before", "true", 365);  // سنة كاملة
   }
 }
 await initStats();
+
+
+// -------------------------
+// 💾 Firebase helpers
+// -------------------------
 
 async function getStats() { 
   const statsRef = doc(db,"appStats","main"); 
@@ -342,9 +383,14 @@ async function updateStats(newStats) {
   await updateDoc(statsRef,newStats); 
 }
 
-function escapeHtml(str){ 
-  if(!str) return ''; 
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); 
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
 }
 
 function toggleNavbar(show){ 
@@ -353,6 +399,9 @@ function toggleNavbar(show){
 }
 
 
+// -------------------------
+// ⭐ نظام الـ Pages
+// -------------------------
 
 async function render(page,data,prevPage='home'){ 
   showLoader();  
@@ -598,8 +647,6 @@ function attachEvents(page,data,prevPage='home'){
     }
   }
 }
-
-
 
 render('start');
 </script>
